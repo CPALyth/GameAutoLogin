@@ -7,6 +7,7 @@
 #include "GameLoginDlg.h"
 #include "afxdialogex.h"
 #include "MyFunc.h"
+#include <iostream>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -15,6 +16,9 @@
 char szPath_Client[MAX_PATH] = { 0 };	//"client"文件夹的全路径
 char szPath_Launcher[MAX_PATH] = { 0 };	//launcher.exe的全路径
 char szPath_Game[MAX_PATH] = { 0 };		//"热血江湖兵临城下"文件夹的全路径
+
+HWND hWnd = NULL;
+HDC hdcClient;
 
 
 // CGameLoginDlg 对话框
@@ -173,7 +177,7 @@ void CGameLoginDlg::OnBnClickedBtn_AutoLogin()
 	LoginData.strPwd = "kptg6594571";
 	LoginData.niServer = 网通二区;
 	LoginData.niGameLine = 七线;
-	LoginData.niRoleIndex = 1;
+	LoginData.niRoleIndex = 2;
 
 	AutoLogin(&LoginData);
 }
@@ -210,7 +214,7 @@ void RunLaucher()
 
 BOOL IsAbleToStartGame()
 {
-	HWND hWnd = FindWindow(NULL, "Yulgang_File_Update");
+	hWnd = FindWindow(NULL, "Yulgang_File_Update");
 	if (hWnd == NULL)	return FALSE;
 	HDC hdcClient = GetDC(hWnd);
 	DWORD dwBGR = GetPixel(hdcClient, 204, 467);	//取窗口客户区一个点的颜色BGR: 0a0a0a
@@ -225,7 +229,7 @@ BOOL SelServerAndStart(DWORD dwIndex)
 {
 	int x = 210;	//"网通一区"按钮正中央
 	int y = 110 + (dwIndex-1)*28;
-	HWND hWnd = FindWindow(NULL, "Yulgang_File_Update");
+	hWnd = FindWindow(NULL, "Yulgang_File_Update");
 	if (hWnd == NULL)	return FALSE;
 
 	// 点击 区服
@@ -272,16 +276,16 @@ void InputString(string strKey)
 
 BOOL IsAbleToInputIdAndPwd()
 {
-	HWND hWnd = FindWindow("D3D Window", NULL);
+	hWnd = FindWindowA(NULL,"YB_OnlineClient");
 	if (hWnd == NULL)	return FALSE;
-	HDC hdcClient = GetDC(hWnd);
+	hdcClient = GetDC(hWnd);
 	DWORD dwBGR = GetPixel(hdcClient, 382, 154);	//取窗口客户区一个点的颜色BGR: 78D0FE
 	DbgOutput("%X\n", dwBGR);
 	if (dwBGR == 0x78D0FE)	return TRUE;
 	return FALSE;
 }
 
-void InputIdAndPwd(CLoginData* pLoginData)
+BOOL InputIdAndPwd(CLoginData* pLoginData)
 {
 	DbgOutput("开始输入账号和密码\n");
 	Sleep(100);
@@ -295,13 +299,32 @@ void InputIdAndPwd(CLoginData* pLoginData)
 	InputString(pLoginData->strPwd);		//输入密码
 	KeyPress(VK_RETURN);	//Enter登录游戏
 	Sleep(3000);
+
+	DWORD dwBGR = GetPixel(hdcClient, 498, 432);	//取窗口客户区一个点的颜色BGR: E9EBEA
+	DbgOutput("颜色BGR:%X\n", dwBGR);
+	if (dwBGR == 0xE9EBEA)
+	{
+		DbgOutput("账号密码输入有误,自动登录失败,将退出游戏\n");
+		MoveTo(507, 462, hWnd);
+		LeftClick();
+		Sleep(500);
+		MoveTo(546, 652, hWnd);
+		LeftClick();
+		return FALSE;
+	}
+	while (dwBGR != 0x0000b4)
+	{
+		Sleep(500);
+		dwBGR = GetPixel(hdcClient, 309, 385);
+		DbgOutput("还未进入选线窗口,颜色BGR:%X\n", dwBGR);
+	}
+	return TRUE;
 }
 
-void AutoLogin(CLoginData* pLoginData)
+BOOL AutoLogin(CLoginData* pLoginData)
 {
 	// 启动登录器,并等待登录器初始化完成
 	RunLaucher();
-	HWND hWnd = NULL;
 	while (hWnd == NULL)
 	{
 		Sleep(500);
@@ -313,25 +336,60 @@ void AutoLogin(CLoginData* pLoginData)
 	// 把登录器窗口前置
 	SwitchToThisWindow(hWnd, TRUE);
 	SelServerAndStart(pLoginData->niServer);	//选择区服
+
 	// 一直等待直到可以输入账号密码
 	while (!IsAbleToInputIdAndPwd())	Sleep(500);
-
 	// 把游戏窗口前置
-	hWnd = FindWindowA("D3D Window", NULL);
-	if (hWnd == NULL)	return;
+	hWnd = FindWindowA(NULL, "YB_OnlineClient");
+	if (hWnd == NULL)	return FALSE;
 	SwitchToThisWindow(hWnd, TRUE);
 	// 输入账号和密码
-	InputIdAndPwd(pLoginData);
+	BOOL bRet = InputIdAndPwd(pLoginData);
+	if (bRet == FALSE)	return FALSE;
 	// 选线
-	MoveTo(613, 435 + (pLoginData->niGameLine) * 21, hWnd);
+	MoveTo(613, 435 + (pLoginData->niGameLine) * 22, hWnd);
 	LeftDoubleClick();
 	// 等待直到可以选择游戏角色
-	Sleep(3000);
-	MoveTo(173, 226 + (pLoginData->niRoleIndex) * 42, hWnd);
+	DWORD dwBGR = NULL;
+	while (dwBGR != 0xc3dcff)
+	{
+		Sleep(500);
+		DbgOutput("颜色BGR:%X\n", dwBGR);
+		dwBGR = GetPixel(hdcClient, 74, 184);
+	}
+	
+	
+	MoveTo(173, 220 + (pLoginData->niRoleIndex) * 42, hWnd);
 	LeftClick();
 	Sleep(1000);
 	// 进入游戏
-	MoveTo(519, 719, hWnd);
+	MoveTo(519, 729, hWnd);
 	LeftClick();
+	// 读取人物属性列表基址,判断是否为空,来检测是否进入游戏
+	DWORD dwPid = 0;
+	GetWindowThreadProcessId(hWnd, &dwPid);
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwPid); 
+	char buf[256] = {0};
+	for(int i = 0; i < 60; ++i)
+	{
+		Sleep(1000);
+		ReadProcessMemory(hProcess, (LPCVOID)Base_RoleProperty, buf, 20, NULL);
+		DbgOutput("第 %d 秒, dwName = %s\n", i, buf);
+		if (buf[0] == 0 && i > 50)
+		{
+			DbgOutput("超过50秒未正常进入游戏,自动登录失败\n");
+			TerminateProcess(hProcess, -1);
+			return FALSE;
+		}
+		else if (buf[0] != 0)
+		{
+			SetWindowTextA(hWnd, (LPCTSTR)buf);	//设置窗口名为人物角色名
+			Sleep(2000);
+			break;
+		}
+	}
+	// 关闭句柄
+	ReleaseDC(hWnd, hdcClient);
+	return TRUE;
 }
 

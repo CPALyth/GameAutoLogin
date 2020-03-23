@@ -55,6 +55,7 @@ BOOL IsAbleToStartGame();		//是否可以点击"开始游戏"
 BOOL SelServerAndStart(DWORD dwIndex);	//选择区服并开始游戏
 void InputString(string strKey);	//输入字符串,用于输入账号和密码
 BOOL IsAbleToInputIdAndPwd();		//是否可以输入账号和密码
-void InputIdAndPwd(CLoginData* pLoginData);				//输入账号和密码
-void AutoLogin(CLoginData* pLoginData);
+BOOL InputIdAndPwd(CLoginData* pLoginData);				//输入账号和密码
+BOOL AutoLogin(CLoginData* pLoginData);
 
+#define Base_RoleProperty 0x02C186D8		//人物属性基址
