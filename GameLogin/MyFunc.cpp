@@ -61,14 +61,14 @@ __int64 Hex2Dec(string strHex)
 
 void MoveTo(int x, int y, HWND hWnd)
 {
+	POINT p;
 	if (hWnd != 0)
 	{
-		CRect r;
-		GetWindowRect(hWnd, &r);
-		x += r.left;
-		y += r.top;
+		p.x = x;
+		p.y = y;
+		ClientToScreen(hWnd, &p);
 	}
-	SetCursorPos(x, y);
+	SetCursorPos(p.x, p.y);
 	Sleep(100);
 }
 

@@ -28,6 +28,33 @@ CGameLoginDlg::CGameLoginDlg(CWnd* pParent /*=nullptr*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
 
+void CGameLoginDlg::Init_AllCtrlData()
+{
+	SetTimer(ID_TIMER1, 1000, NULL);
+	strcpy_s(szPath_Launcher, "D:\\热血江湖兵临城下\\launcher.exe");
+	strcpy_s(szPath_Game, "D:\\热血江湖兵临城下\\");
+	strcpy_s(szPath_Client, "D:\\热血江湖兵临城下\\Client\\");
+	m_edt_LauncherPath = szPath_Launcher;
+
+	CComboBox* pCmbBox_DaQu = (CComboBox*)GetDlgItem(IDC_COMBO1);
+	pCmbBox_DaQu->SetCurSel(网通二区);
+
+	CComboBox* pCmbBox_Server = (CComboBox*)GetDlgItem(IDC_COMBO2);
+	pCmbBox_Server->ResetContent();
+	pCmbBox_Server->AddString("1 雄霸");
+	pCmbBox_Server->SetCurSel(0);
+
+	CComboBox* pCmbBox_XianLu = (CComboBox*)GetDlgItem(IDC_COMBO3);
+	pCmbBox_XianLu->SetCurSel(七线);
+
+	CComboBox* pCmbBox_RoleIndex = (CComboBox*)GetDlgItem(IDC_COMBO4);
+	pCmbBox_RoleIndex->SetCurSel(第1个);
+
+	Init_ListCtrl();
+
+	UpdateData(FALSE);	//变量 -> 控件
+}
+
 void CGameLoginDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
@@ -40,6 +67,7 @@ BEGIN_MESSAGE_MAP(CGameLoginDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON5, &CGameLoginDlg::OnBnClickedBtn_AutoLogin)
 	ON_BN_CLICKED(IDC_BUTTON1, &CGameLoginDlg::OnBnClickedBtn_LauncherDir)
 	ON_WM_TIMER()
+	ON_CBN_SELCHANGE(IDC_COMBO1, &CGameLoginDlg::OnCbnSelchangeCombo1)
 END_MESSAGE_MAP()
 
 
@@ -55,13 +83,7 @@ BOOL CGameLoginDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
-	strcpy_s(szPath_Launcher, "D:\\热血江湖兵临城下\\launcher.exe");
-	strcpy_s(szPath_Game, "D:\\热血江湖兵临城下\\");
-	strcpy_s(szPath_Client, "D:\\热血江湖兵临城下\\Client\\");
-	m_edt_LauncherPath = szPath_Launcher;
-	UpdateData(FALSE);	//变量 -> 控件
-
-	SetTimer(ID_TIMER1, 1000, NULL);
+	Init_AllCtrlData();
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -102,10 +124,29 @@ HCURSOR CGameLoginDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+void CGameLoginDlg::Init_ListCtrl()
+{
+	CListCtrl *pListC = (CListCtrl*)GetDlgItem(IDC_LIST1);
+	CRect RListC;
+	DWORD dwStyle = ::GetWindowLongA(pListC->m_hWnd, GWL_STYLE);
+	dwStyle |= LVS_REPORT;	//设置为报表格式
+	::SetWindowLongA(pListC->m_hWnd, GWL_STYLE, dwStyle);
+
+	DWORD dwExStyle = pListC->GetExtendedStyle();
+	dwExStyle |= LVS_EX_FULLROWSELECT;	//选中某行使整行高亮
+	dwExStyle |= LVS_EX_GRIDLINES;		//网格线
+	pListC->SetExtendedStyle(dwExStyle);
+
+	pListC->InsertColumn(0, "账号", LVCFMT_CENTER, 77, 0);
+	pListC->InsertColumn(1, "密码", LVCFMT_CENTER, 77, 0);
+	pListC->InsertColumn(2, "大区", LVCFMT_CENTER, 66, 0);
+	pListC->InsertColumn(3, "服务器", LVCFMT_CENTER, 88, 0);
+	pListC->InsertColumn(4, "线路", LVCFMT_CENTER, 66, 0);
+	pListC->InsertColumn(5, "人物角色", LVCFMT_CENTER, 100, 0);
+}
+
 BYTE GameOpenNum = 0;	//游戏窗口打开数
-BOOL CALLBACK EnumWindowsProc(
-	HWND hwnd,
-	LPARAM lParam)
+BOOL CALLBACK EnumWindowsProc(HWND hwnd,LPARAM lParam)
 {
 	TCHAR buf_ClassName[200] = { 0 };
 	GetClassName(hwnd, buf_ClassName, sizeof(buf_ClassName));
@@ -177,7 +218,7 @@ void CGameLoginDlg::OnBnClickedBtn_AutoLogin()
 	LoginData.strPwd = "kptg6594571";
 	LoginData.niServer = 网通二区;
 	LoginData.niGameLine = 七线;
-	LoginData.niRoleIndex = 2;
+	LoginData.niRoleIndex = 0;
 
 	AutoLogin(&LoginData);
 }
@@ -214,7 +255,7 @@ void RunLaucher()
 
 BOOL IsAbleToStartGame()
 {
-	hWnd = FindWindow(NULL, "Yulgang_File_Update");
+	hWnd = FindWindowA(NULL, "Yulgang_File_Update");
 	if (hWnd == NULL)	return FALSE;
 	HDC hdcClient = GetDC(hWnd);
 	DWORD dwBGR = GetPixel(hdcClient, 204, 467);	//取窗口客户区一个点的颜色BGR: 0a0a0a
@@ -225,11 +266,11 @@ BOOL IsAbleToStartGame()
 
 /* [2020/03/19 10:11]-[Remark: None] */
 /* [选择区服并开始游戏]-[成功返回真，否则返回假] */
-BOOL SelServerAndStart(DWORD dwIndex)
+BOOL SelDaQuAndStart(DWORD dwIndex)
 {
 	int x = 210;	//"网通一区"按钮正中央
-	int y = 110 + (dwIndex-1)*28;
-	hWnd = FindWindow(NULL, "Yulgang_File_Update");
+	int y = 110 + dwIndex * 28;
+	hWnd = FindWindowA(NULL, "Yulgang_File_Update");
 	if (hWnd == NULL)	return FALSE;
 
 	// 点击 区服
@@ -335,7 +376,7 @@ BOOL AutoLogin(CLoginData* pLoginData)
 
 	// 把登录器窗口前置
 	SwitchToThisWindow(hWnd, TRUE);
-	SelServerAndStart(pLoginData->niServer);	//选择区服
+	SelDaQuAndStart(pLoginData->niServer);	//选择区服
 
 	// 一直等待直到可以输入账号密码
 	while (!IsAbleToInputIdAndPwd())	Sleep(500);
@@ -347,23 +388,24 @@ BOOL AutoLogin(CLoginData* pLoginData)
 	BOOL bRet = InputIdAndPwd(pLoginData);
 	if (bRet == FALSE)	return FALSE;
 	// 选线
-	MoveTo(613, 435 + (pLoginData->niGameLine) * 22, hWnd);
+	DbgOutput("y=%d\n", 437 + (pLoginData->niGameLine) * 21);
+	MoveTo(613 + rnd(-20,20), 437 + (pLoginData->niGameLine) * 21, hWnd);
 	LeftDoubleClick();
 	// 等待直到可以选择游戏角色
 	DWORD dwBGR = NULL;
-	while (dwBGR != 0xc3dcff)
+	while (dwBGR != 0xa4bbbb)
 	{
 		Sleep(500);
 		DbgOutput("颜色BGR:%X\n", dwBGR);
-		dwBGR = GetPixel(hdcClient, 74, 184);
+		dwBGR = GetPixel(hdcClient, 303, 336);
 	}
+	Sleep(500);
 	
-	
-	MoveTo(173, 220 + (pLoginData->niRoleIndex) * 42, hWnd);
+	MoveTo(180, 229 + (pLoginData->niRoleIndex) * 42, hWnd);
 	LeftClick();
 	Sleep(1000);
 	// 进入游戏
-	MoveTo(519, 729, hWnd);
+	MoveTo(498, 722, hWnd);
 	LeftClick();
 	// 读取人物属性列表基址,判断是否为空,来检测是否进入游戏
 	DWORD dwPid = 0;
@@ -393,3 +435,75 @@ BOOL AutoLogin(CLoginData* pLoginData)
 	return TRUE;
 }
 
+
+
+void CGameLoginDlg::OnCbnSelchangeCombo1()
+{
+	CComboBox* pCmbBox_DaQu = (CComboBox*)GetDlgItem(IDC_COMBO1);
+	CComboBox* pCmbBox_Server = (CComboBox*)GetDlgItem(IDC_COMBO2);
+	DWORD dwIndex = pCmbBox_DaQu->GetCurSel();
+	switch (dwIndex)
+	{
+	case 0:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 魔神");
+		pCmbBox_Server->AddString("2 龙争虎斗");
+		pCmbBox_Server->AddString("3 冰宫");
+		pCmbBox_Server->AddString("4 雪原");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 1:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 雄霸");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 2:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 登峰造极");
+		pCmbBox_Server->AddString("2 剑魔之血");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 3:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 碧海");
+		pCmbBox_Server->AddString("2 啸天");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 4:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 狂龙降天");
+		pCmbBox_Server->AddString("2 幻影密路");
+		pCmbBox_Server->AddString("3 长空");
+		pCmbBox_Server->AddString("4 傲雪");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 5:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 锋芒毕露");
+		pCmbBox_Server->AddString("2 东岳");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 6:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 玄湖");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 7:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 魅影");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 8:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 紫月");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	case 9:
+		pCmbBox_Server->ResetContent();
+		pCmbBox_Server->AddString("1 霸业");
+		pCmbBox_Server->AddString("2 苍月");
+		pCmbBox_Server->AddString("3 星霜");
+		pCmbBox_Server->SetCurSel(0);
+		break;
+	}
+}
