@@ -13,12 +13,13 @@
 #define new DEBUG_NEW
 #endif
 
-char szPath_Client[MAX_PATH] = { 0 };	//"client"文件夹的全路径
-char szPath_Launcher[MAX_PATH] = { 0 };	//launcher.exe的全路径
-char szPath_Game[MAX_PATH] = { 0 };		//"热血江湖兵临城下"文件夹的全路径
+char szPath_Client[MAX_PATH] = { 0 };	// "client"文件夹的全路径
+char szPath_Launcher[MAX_PATH] = { 0 };	// launcher.exe的全路径
+char szPath_Game[MAX_PATH] = { 0 };		// "热血江湖兵临城下"文件夹的全路径
 
 HWND hWnd = NULL;
 HDC hdcClient;
+vector<CLoginData> v_UserData;	// 定义一个全局的vector容器存放所有账号信息
 
 
 // CGameLoginDlg 对话框
@@ -68,6 +69,9 @@ BEGIN_MESSAGE_MAP(CGameLoginDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON1, &CGameLoginDlg::OnBnClickedBtn_LauncherDir)
 	ON_WM_TIMER()
 	ON_CBN_SELCHANGE(IDC_COMBO1, &CGameLoginDlg::OnCbnSelchangeCombo1)
+	ON_BN_CLICKED(IDC_BTN_AUTOLOGIN, &CGameLoginDlg::OnBnClickedBtn_AutoLogin)
+	ON_BN_CLICKED(IDC_BTN_ADDMSG, &CGameLoginDlg::OnBnClickedBtnAddmsg)
+	ON_BN_CLICKED(IDC_BTN_DEL, &CGameLoginDlg::OnBnClickedBtnDel)
 END_MESSAGE_MAP()
 
 
@@ -137,12 +141,12 @@ void CGameLoginDlg::Init_ListCtrl()
 	dwExStyle |= LVS_EX_GRIDLINES;		//网格线
 	pListC->SetExtendedStyle(dwExStyle);
 
-	pListC->InsertColumn(0, "账号", LVCFMT_CENTER, 77, 0);
-	pListC->InsertColumn(1, "密码", LVCFMT_CENTER, 77, 0);
+	pListC->InsertColumn(0, "账号", LVCFMT_CENTER, 80, 0);
+	pListC->InsertColumn(1, "密码", LVCFMT_CENTER, 88, 0);
 	pListC->InsertColumn(2, "大区", LVCFMT_CENTER, 66, 0);
 	pListC->InsertColumn(3, "服务器", LVCFMT_CENTER, 88, 0);
-	pListC->InsertColumn(4, "线路", LVCFMT_CENTER, 66, 0);
-	pListC->InsertColumn(5, "人物角色", LVCFMT_CENTER, 100, 0);
+	pListC->InsertColumn(4, "线路", LVCFMT_CENTER, 63, 0);
+	pListC->InsertColumn(5, "人物角色", LVCFMT_CENTER, 89, 0);
 }
 
 BYTE GameOpenNum = 0;	//游戏窗口打开数
@@ -214,10 +218,10 @@ void CGameLoginDlg::OnBnClickedBtn_LauncherDir()
 void CGameLoginDlg::OnBnClickedBtn_AutoLogin()
 {
 	CLoginData LoginData;
-	LoginData.strAccount = "ws164803";
-	LoginData.strPwd = "kptg6594571";
+	strcpy_s(LoginData.szUserName, "ws164803");
+	strcpy_s(LoginData.szPwd, "kptg6594571");
 	LoginData.niServer = 网通二区;
-	LoginData.niGameLine = 七线;
+	LoginData.niXianLu = 七线;
 	LoginData.niRoleIndex = 0;
 
 	AutoLogin(&LoginData);
@@ -333,11 +337,11 @@ BOOL InputIdAndPwd(CLoginData* pLoginData)
 	KeyPress(VK_SHIFT);	//切换为英文输入法
 
 	DbgOutput("输入账号\n");
-	InputString(pLoginData->strAccount);	//输入账号
+	InputString(pLoginData->szUserName);	//输入账号
 	KeyPress(VK_TAB);	//TAB切换到密码编辑框
 
 	DbgOutput("输入密码\n");
-	InputString(pLoginData->strPwd);		//输入密码
+	InputString(pLoginData->szPwd);		//输入密码
 	KeyPress(VK_RETURN);	//Enter登录游戏
 	Sleep(3000);
 
@@ -388,8 +392,8 @@ BOOL AutoLogin(CLoginData* pLoginData)
 	BOOL bRet = InputIdAndPwd(pLoginData);
 	if (bRet == FALSE)	return FALSE;
 	// 选线
-	DbgOutput("y=%d\n", 437 + (pLoginData->niGameLine) * 21);
-	MoveTo(613 + rnd(-20,20), 437 + (pLoginData->niGameLine) * 21, hWnd);
+	DbgOutput("y=%d\n", 437 + (pLoginData->niXianLu) * 21);
+	MoveTo(613 + rnd(-20,20), 437 + (pLoginData->niXianLu) * 21, hWnd);
 	LeftDoubleClick();
 	// 等待直到可以选择游戏角色
 	DWORD dwBGR = NULL;
@@ -506,4 +510,62 @@ void CGameLoginDlg::OnCbnSelchangeCombo1()
 		pCmbBox_Server->SetCurSel(0);
 		break;
 	}
+}
+
+/* [2020/03/25 10:32]-[Remark: None] */
+/* [按钮:添加信息]-[Return:None] */
+void CGameLoginDlg::OnBnClickedBtnAddmsg()
+{
+	DbgOutput("添加登录信息\n");
+	CEdit* pEdt_UserName = (CEdit*)GetDlgItem(IDC_EDIT_USERNAME);
+	CEdit* pEdt_PassWord = (CEdit*)GetDlgItem(IDC_EDIT_PASSWORD);
+	CComboBox* pCmb_DaQu = (CComboBox*)GetDlgItem(IDC_COMBO1);
+	CComboBox* pCmb_Server = (CComboBox*)GetDlgItem(IDC_COMBO2);
+	CComboBox* pCmb_XianLu = (CComboBox*)GetDlgItem(IDC_COMBO3);
+	CComboBox* pCmb_RoleIndex = (CComboBox*)GetDlgItem(IDC_COMBO4);
+
+	CLoginData CuserData;
+	pEdt_UserName->GetWindowTextA(CuserData.szUserName, sizeof(CuserData.szUserName));
+	pEdt_PassWord->GetWindowTextA(CuserData.szPwd, sizeof(CuserData.szPwd));
+	CuserData.niDaQu = pCmb_DaQu->GetCurSel();
+	CuserData.niServer = pCmb_Server->GetCurSel();
+	CuserData.niXianLu = pCmb_XianLu->GetCurSel();
+	CuserData.niRoleIndex = pCmb_RoleIndex->GetCurSel();
+
+	v_UserData.push_back(CuserData);
+	UpdateListCtrl();
+}
+
+void CGameLoginDlg::UpdateListCtrl()
+{
+	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
+	
+	int iRow = pLstC->GetItemCount();	// 获取项数 (行数),实现尾插
+	pLstC->InsertItem(iRow, v_UserData[iRow].szUserName);	// 账号
+	pLstC->SetItemText(iRow, 1, v_UserData[iRow].szPwd);		// 密码
+	pLstC->SetItemText(iRow, 2, GetCmbCurSelItemText(IDC_COMBO1, v_UserData[iRow].niDaQu));		// 大区
+	pLstC->SetItemText(iRow, 3, GetCmbCurSelItemText(IDC_COMBO2, v_UserData[iRow].niServer));	// 服务器
+	pLstC->SetItemText(iRow, 4, GetCmbCurSelItemText(IDC_COMBO3, v_UserData[iRow].niXianLu));	// 线路
+	pLstC->SetItemText(iRow, 5, GetCmbCurSelItemText(IDC_COMBO4, v_UserData[iRow].niRoleIndex));	// 角色	
+}
+
+CString CGameLoginDlg::GetCmbCurSelItemText(UINT IdOfCtrl,DWORD dwIndex)
+{
+	CString cStr;
+	CComboBox* pCmb = (CComboBox*)GetDlgItem(IdOfCtrl);
+	pCmb->GetLBText(pCmb->GetCurSel(), cStr);
+	return cStr;
+}
+
+void CGameLoginDlg::OnBnClickedBtnDel()
+{
+	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
+	POSITION pos = pLstC->GetFirstSelectedItemPosition();	// 获取列表视图控件中第一个选定项的位置
+	if (pos == NULL)	return;
+	int rowToDelete = pLstC->GetNextSelectedItem(pos);	// 获取选中项的项数 (行数)
+	if (rowToDelete < 0)	return;	// 未选中项则直接返回
+
+	v_UserData.erase(v_UserData.begin()+ rowToDelete);	// 容器中清除该元素
+	// 删除表格中对应项
+	pLstC->DeleteItem(rowToDelete);
 }

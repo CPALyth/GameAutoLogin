@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <windows.h>
 #include <string>
+#include <vector>
 using namespace std;
 
 #define ID_TIMER1 1
@@ -39,6 +40,11 @@ public:
 	CString m_edt_LauncherPath;
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnCbnSelchangeCombo1();
+	afx_msg void OnBnClickedBtnAddmsg();
+
+	void UpdateListCtrl();
+	CString GetCmbCurSelItemText(UINT IdOfCtrl, DWORD dwIndex);
+	afx_msg void OnBnClickedBtnDel();
 };
 
 
@@ -46,10 +52,11 @@ public:
 class CLoginData
 {
 public:
-	string strAccount;	//账号
-	string strPwd;		//密码
-	UINT niServer;		//几区
-	UINT niGameLine;	//几线
+	char szUserName[30];	//账号
+	char szPwd[30];		//密码
+	UINT niDaQu;		//大区
+	UINT niServer;		//几服
+	UINT niXianLu;	//几线
 	UINT niRoleIndex;		//第几个角色
 };
 

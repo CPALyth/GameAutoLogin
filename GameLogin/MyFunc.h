@@ -5,6 +5,7 @@
 #include <math.h>
 #include <atltypes.h>
 #include <ctime>
+#include <atlstr.h>
 
 // 调试输出
 void DbgOutput(const char *szFormat, ...);
@@ -21,4 +22,7 @@ void KeyPress(BYTE vk_Code);
 // 随机数
 template<class T>
 T rnd(T _begin, T _end);
+
+// 数据类型转换
+LPCTSTR int2LPCSTR(int a);
 

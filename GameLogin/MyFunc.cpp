@@ -98,6 +98,15 @@ void KeyPress(BYTE vk_Code)
 	keybd_event(vk_Code, 0, KEYEVENTF_KEYUP, 0);
 }
 
+LPCTSTR int2LPCSTR(int a)
+{
+	CString cstr;
+	cstr.Format(_T("%d"), a);
+	return cstr;
+}
+
+
+
 template<class T>
 T rnd(T _begin, T _end)
 {
