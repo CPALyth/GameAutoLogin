@@ -11,6 +11,7 @@
 #define IDC_BTN_ADDMSG                  1006
 #define IDC_TEXT                        1007
 #define IDC_EDIT1                       1008
+#define IDC_BTN_SAVECFG                 1009
 #define IDC_LIST1                       1010
 #define IDC_EDIT_USERNAME               1011
 #define IDC_EDIT_PASSWORD               1012
@@ -18,6 +19,8 @@
 #define IDC_COMBO2                      1014
 #define IDC_COMBO3                      1015
 #define IDC_COMBO4                      1016
+#define IDC_BTN_AUTOLOGIN3              1017
+#define IDC_BTN_READCFG                 1017
 
 // Next default values for new objects
 // 

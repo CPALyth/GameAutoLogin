@@ -29,7 +29,7 @@ CGameLoginDlg::CGameLoginDlg(CWnd* pParent /*=nullptr*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
 
-void CGameLoginDlg::Init_AllCtrlData()
+void CGameLoginDlg::Init_AllCtlData()
 {
 	SetTimer(ID_TIMER1, 1000, NULL);
 	strcpy_s(szPath_Launcher, "D:\\热血江湖兵临城下\\launcher.exe");
@@ -72,6 +72,8 @@ BEGIN_MESSAGE_MAP(CGameLoginDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_AUTOLOGIN, &CGameLoginDlg::OnBnClickedBtn_AutoLogin)
 	ON_BN_CLICKED(IDC_BTN_ADDMSG, &CGameLoginDlg::OnBnClickedBtnAddmsg)
 	ON_BN_CLICKED(IDC_BTN_DEL, &CGameLoginDlg::OnBnClickedBtnDel)
+	ON_BN_CLICKED(IDC_BTN_SAVECFG, &CGameLoginDlg::OnBnClickedBtnSavecfg)
+	ON_BN_CLICKED(IDC_BTN_READCFG, &CGameLoginDlg::OnBnClickedBtnReadcfg)
 END_MESSAGE_MAP()
 
 
@@ -87,7 +89,8 @@ BOOL CGameLoginDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
-	Init_AllCtrlData();
+	Init_AllCtlData();
+	ReadFileDataToListCtl();
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -366,6 +369,7 @@ BOOL InputIdAndPwd(CLoginData* pLoginData)
 	return TRUE;
 }
 
+#define Base_RoleProperty 0x02C186D8		//人物属性基址
 BOOL AutoLogin(CLoginData* pLoginData)
 {
 	// 启动登录器,并等待登录器初始化完成
@@ -533,10 +537,39 @@ void CGameLoginDlg::OnBnClickedBtnAddmsg()
 	CuserData.niRoleIndex = pCmb_RoleIndex->GetCurSel();
 
 	v_UserData.push_back(CuserData);
-	UpdateListCtrl();
+	InsertListCtl();
 }
 
-void CGameLoginDlg::UpdateListCtrl()
+/* [2020/03/26 09:13]-[Remark: None] */
+/* [删除当前选中行]-[Return:None] */
+void CGameLoginDlg::OnBnClickedBtnDel()
+{
+	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
+	POSITION pos = pLstC->GetFirstSelectedItemPosition();	// 获取列表视图控件中第一个选定项的位置
+	if (pos == NULL)	return;
+	int rowToDelete = pLstC->GetNextSelectedItem(pos);	// 获取选中项的项数 (行数)
+	if (rowToDelete < 0)	return;	// 未选中项则直接返回
+
+	v_UserData.erase(v_UserData.begin() + rowToDelete);	// 容器中清除该元素
+	// 删除表格中对应项
+	pLstC->DeleteItem(rowToDelete);
+}
+
+void CGameLoginDlg::OnBnClickedBtnSavecfg()
+{
+	SaveListCtlDataToFile();
+}
+
+
+void CGameLoginDlg::OnBnClickedBtnReadcfg()
+{
+	ReadFileDataToListCtl();
+}
+
+
+/* [2020/03/26 09:13]-[Remark: None] */
+/* [将当前数据插入列表框]-[Return:None] */
+void CGameLoginDlg::InsertListCtl()
 {
 	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
 	
@@ -549,6 +582,24 @@ void CGameLoginDlg::UpdateListCtrl()
 	pLstC->SetItemText(iRow, 5, GetCmbCurSelItemText(IDC_COMBO4, v_UserData[iRow].niRoleIndex));	// 角色	
 }
 
+/* [2020/03/26 10:05]-[Remark: None] */
+/* [用vector容器的所有元素更新列表控件]-[Return:None] */
+void CGameLoginDlg::UpdateListCtl()
+{
+	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
+	pLstC->DeleteAllItems();	// 先清空列表框
+	int iRow = 0;
+	for(vector<CLoginData>::iterator it = v_UserData.begin(); it != v_UserData.end(); ++it,++iRow)
+	{
+		pLstC->InsertItem(iRow, it->szUserName);
+		pLstC->SetItemText(iRow, 1, it->szPwd);
+		pLstC->SetItemText(iRow, 2, GetCmbCurSelItemText(IDC_COMBO1, it->niDaQu));
+		pLstC->SetItemText(iRow, 3, GetCmbCurSelItemText(IDC_COMBO2, it->niServer));
+		pLstC->SetItemText(iRow, 4, GetCmbCurSelItemText(IDC_COMBO3, it->niXianLu));
+		pLstC->SetItemText(iRow, 5, GetCmbCurSelItemText(IDC_COMBO4, it->niRoleIndex));
+	}
+}
+
 CString CGameLoginDlg::GetCmbCurSelItemText(UINT IdOfCtrl,DWORD dwIndex)
 {
 	CString cStr;
@@ -557,15 +608,57 @@ CString CGameLoginDlg::GetCmbCurSelItemText(UINT IdOfCtrl,DWORD dwIndex)
 	return cStr;
 }
 
-void CGameLoginDlg::OnBnClickedBtnDel()
+#define LoginConfig "C:/LoginConfig.bin"
+void CGameLoginDlg::SaveListCtlDataToFile()
 {
-	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
-	POSITION pos = pLstC->GetFirstSelectedItemPosition();	// 获取列表视图控件中第一个选定项的位置
-	if (pos == NULL)	return;
-	int rowToDelete = pLstC->GetNextSelectedItem(pos);	// 获取选中项的项数 (行数)
-	if (rowToDelete < 0)	return;	// 未选中项则直接返回
-
-	v_UserData.erase(v_UserData.begin()+ rowToDelete);	// 容器中清除该元素
-	// 删除表格中对应项
-	pLstC->DeleteItem(rowToDelete);
+	ofstream ofs;
+	ofs.open(LoginConfig, ios::out | ios::binary);
+	if (!ofs.is_open())
+	{
+		DbgOutput("文件打开失败\n");
+	}
+	else
+	{
+		DbgOutput("正在保存列表框数据到文件LoginConfig.bin...\n");
+		for(vector<CLoginData>::iterator it = v_UserData.begin(); it != v_UserData.end(); ++it)
+		{
+			ofs.write(it->szUserName, sizeof(it->szUserName));
+			ofs.write(it->szPwd, sizeof(it->szPwd));
+			ofs.write((char*)&(it->niDaQu), sizeof(it->niDaQu));
+			ofs.write((char*)&(it->niServer), sizeof(it->niServer));
+			ofs.write((char*)&(it->niXianLu), sizeof(it->niXianLu));
+			ofs.write((char*)&(it->niRoleIndex), sizeof(it->niRoleIndex));
+		}
+		DbgOutput("保存列表框数据成功!\n");
+	}
+	ofs.close();
 }
+
+void CGameLoginDlg::ReadFileDataToListCtl()
+{
+	ifstream ifs;
+	ifs.open(LoginConfig, ios::in | ios::binary);
+	CLoginData CuserData;
+	if (!ifs.is_open())
+	{
+		DbgOutput("文件打开失败\n");
+	}
+	else
+	{
+		v_UserData.clear();	//先清除原有数据
+		DbgOutput("正在从文件LoginConfig.bin读取列表框数据...\n");
+		while (TRUE)	
+		{
+			ifs.read((char*)&CuserData, sizeof(CuserData));
+			if (ifs.eof())	break;	// eof会多读一次
+			v_UserData.push_back(CuserData);
+		}
+		DbgOutput("读取列表框数据成功!\n");
+	}
+	ifs.close();
+	UpdateListCtl();
+}
+
+
+
+

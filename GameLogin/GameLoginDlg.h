@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <string>
 #include <vector>
+#include <fstream>
 using namespace std;
 
 #define ID_TIMER1 1
@@ -13,7 +14,7 @@ class CGameLoginDlg : public CDialogEx
 public:
 	CGameLoginDlg(CWnd* pParent = nullptr);	// 标准构造函数
 	
-	void Init_AllCtrlData();	//初始化所有控件数据
+	void Init_AllCtlData();	//初始化所有控件数据
 	void Init_ListCtrl();		
 
 // 对话框数据
@@ -41,10 +42,16 @@ public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnCbnSelchangeCombo1();
 	afx_msg void OnBnClickedBtnAddmsg();
-
-	void UpdateListCtrl();
-	CString GetCmbCurSelItemText(UINT IdOfCtrl, DWORD dwIndex);
 	afx_msg void OnBnClickedBtnDel();
+	afx_msg void OnBnClickedBtnSavecfg();
+	afx_msg void OnBnClickedBtnReadcfg();
+
+	void InsertListCtl();
+	void UpdateListCtl();
+	CString GetCmbCurSelItemText(UINT IdOfCtrl, DWORD dwIndex);
+	void SaveListCtlDataToFile();
+	void ReadFileDataToListCtl();
+	
 };
 
 
@@ -72,4 +79,3 @@ BOOL IsAbleToInputIdAndPwd();		//是否可以输入账号和密码
 BOOL InputIdAndPwd(CLoginData* pLoginData);				//输入账号和密码
 BOOL AutoLogin(CLoginData* pLoginData);
 
-#define Base_RoleProperty 0x02C186D8		//人物属性基址
