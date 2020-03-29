@@ -17,9 +17,10 @@ char szPath_Client[MAX_PATH] = { 0 };	// "client"文件夹的全路径
 char szPath_Launcher[MAX_PATH] = { 0 };	// launcher.exe的全路径
 char szPath_Game[MAX_PATH] = { 0 };		// "热血江湖兵临城下"文件夹的全路径
 
-HWND hWnd = NULL;
+
 HDC hdcClient;
 vector<CLoginData> v_UserData;	// 定义一个全局的vector容器存放所有账号信息
+CRITICAL_SECTION cs;
 
 
 // CGameLoginDlg 对话框
@@ -91,6 +92,7 @@ BOOL CGameLoginDlg::OnInitDialog()
 	// TODO: 在此添加额外的初始化代码
 	Init_AllCtlData();
 	ReadFileDataToListCtl();
+	InitializeCriticalSection(&cs);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -217,17 +219,30 @@ void CGameLoginDlg::OnBnClickedBtn_LauncherDir()
 	UpdateData(FALSE);	//变量 -> 控件
 }
 
+
+//线程函数
+void WINAPI ThreadFunc(LPVOID pParam)
+{
+	CLoginData* pLD = (CLoginData*)pParam;
+	AutoLogin(pLD);
+	delete pLD;
+}
+
 //自动登录
 void CGameLoginDlg::OnBnClickedBtn_AutoLogin()
 {
-	CLoginData LoginData;
-	strcpy_s(LoginData.szUserName, "ws164803");
-	strcpy_s(LoginData.szPwd, "kptg6594571");
-	LoginData.niServer = 网通二区;
-	LoginData.niXianLu = 七线;
-	LoginData.niRoleIndex = 0;
-
-	AutoLogin(&LoginData);
+	for(vector<CLoginData>::iterator it = v_UserData.begin(); it != v_UserData.end(); ++it)
+	{
+		CLoginData* pLoginData = new CLoginData;
+		strcpy_s(pLoginData->szUserName, it->szUserName);
+		strcpy_s(pLoginData->szPwd, it->szPwd);
+		pLoginData->niDaQu = it->niDaQu;
+		pLoginData->niServer = it->niServer;
+		pLoginData->niXianLu = it->niXianLu;
+		pLoginData->niRoleIndex = it->niRoleIndex;
+		HANDLE hThread = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ThreadFunc, pLoginData, NULL, NULL);
+		CloseHandle(hThread);
+	}
 }
 
 
@@ -262,7 +277,7 @@ void RunLaucher()
 
 BOOL IsAbleToStartGame()
 {
-	hWnd = FindWindowA(NULL, "Yulgang_File_Update");
+	HWND hWnd = FindWindowA(NULL, "Yulgang_File_Update");
 	if (hWnd == NULL)	return FALSE;
 	HDC hdcClient = GetDC(hWnd);
 	DWORD dwBGR = GetPixel(hdcClient, 204, 467);	//取窗口客户区一个点的颜色BGR: 0a0a0a
@@ -277,7 +292,7 @@ BOOL SelDaQuAndStart(DWORD dwIndex)
 {
 	int x = 210;	//"网通一区"按钮正中央
 	int y = 110 + dwIndex * 28;
-	hWnd = FindWindowA(NULL, "Yulgang_File_Update");
+	HWND hWnd = FindWindowA(NULL, "Yulgang_File_Update");
 	if (hWnd == NULL)	return FALSE;
 
 	// 点击 区服
@@ -324,7 +339,7 @@ void InputString(string strKey)
 
 BOOL IsAbleToInputIdAndPwd()
 {
-	hWnd = FindWindowA(NULL,"YB_OnlineClient");
+	HWND hWnd = FindWindowA(NULL,"YB_OnlineClient");
 	if (hWnd == NULL)	return FALSE;
 	hdcClient = GetDC(hWnd);
 	DWORD dwBGR = GetPixel(hdcClient, 382, 154);	//取窗口客户区一个点的颜色BGR: 78D0FE
@@ -333,7 +348,7 @@ BOOL IsAbleToInputIdAndPwd()
 	return FALSE;
 }
 
-BOOL InputIdAndPwd(CLoginData* pLoginData)
+BOOL InputIdAndPwd(CLoginData* pLoginData,HWND hWnd)
 {
 	DbgOutput("开始输入账号和密码\n");
 	Sleep(100);
@@ -353,10 +368,10 @@ BOOL InputIdAndPwd(CLoginData* pLoginData)
 	if (dwBGR == 0xE9EBEA)
 	{
 		DbgOutput("账号密码输入有误,自动登录失败,将退出游戏\n");
-		MoveTo(507, 462, hWnd);
+		MoveTo(507, 437, hWnd);
 		LeftClick();
 		Sleep(500);
-		MoveTo(546, 652, hWnd);
+		MoveTo(544, 627, hWnd);
 		LeftClick();
 		return FALSE;
 	}
@@ -372,33 +387,41 @@ BOOL InputIdAndPwd(CLoginData* pLoginData)
 #define Base_RoleProperty 0x02C186D8		//人物属性基址
 BOOL AutoLogin(CLoginData* pLoginData)
 {
-	// 启动登录器,并等待登录器初始化完成
-	RunLaucher();
-	while (hWnd == NULL)
+	HWND hWnd = NULL;
+	EnterCriticalSection(&cs);	// 进入临界区
 	{
-		Sleep(500);
-		DbgOutput("登录器还未打开\n");
-		hWnd = FindWindowA(NULL, "Yulgang_File_Update");
+		// 启动登录器,并等待登录器初始化完成
+		RunLaucher();
+		while (hWnd == NULL)
+		{
+			Sleep(500);
+			DbgOutput("登录器还未打开\n");
+			hWnd = FindWindowA(NULL, "Yulgang_File_Update");
+		}
+		Sleep(1000);
+
+		// 把登录器窗口前置
+		SwitchToThisWindow(hWnd, TRUE);
+		SelDaQuAndStart(pLoginData->niDaQu);	//选择区服
+
+		// 一直等待直到可以输入账号密码
+		while (!IsAbleToInputIdAndPwd())	Sleep(500);
+
+		// 把游戏窗口前置
+		hWnd = FindWindowA(NULL, "YB_OnlineClient");
+		if (hWnd == NULL)	return FALSE;
+		SwitchToThisWindow(hWnd, TRUE);
+		SetWindowTextA(hWnd, "正在登录...");	// 修改窗口标题
+		// 输入账号和密码
+		BOOL bRet = InputIdAndPwd(pLoginData,hWnd);
+		if (bRet == FALSE)	return FALSE;
+		// 选线
+		DbgOutput("y=%d\n", 437 + (pLoginData->niXianLu) * 21);
+		MoveTo(613 + rnd(-20,20), 437 + (pLoginData->niXianLu) * 21, hWnd);
+		LeftDoubleClick();
 	}
-	Sleep(1000);
+	LeaveCriticalSection(&cs);	// 离开临界区
 
-	// 把登录器窗口前置
-	SwitchToThisWindow(hWnd, TRUE);
-	SelDaQuAndStart(pLoginData->niServer);	//选择区服
-
-	// 一直等待直到可以输入账号密码
-	while (!IsAbleToInputIdAndPwd())	Sleep(500);
-	// 把游戏窗口前置
-	hWnd = FindWindowA(NULL, "YB_OnlineClient");
-	if (hWnd == NULL)	return FALSE;
-	SwitchToThisWindow(hWnd, TRUE);
-	// 输入账号和密码
-	BOOL bRet = InputIdAndPwd(pLoginData);
-	if (bRet == FALSE)	return FALSE;
-	// 选线
-	DbgOutput("y=%d\n", 437 + (pLoginData->niXianLu) * 21);
-	MoveTo(613 + rnd(-20,20), 437 + (pLoginData->niXianLu) * 21, hWnd);
-	LeftDoubleClick();
 	// 等待直到可以选择游戏角色
 	DWORD dwBGR = NULL;
 	while (dwBGR != 0xa4bbbb)
@@ -409,12 +432,18 @@ BOOL AutoLogin(CLoginData* pLoginData)
 	}
 	Sleep(500);
 	
-	MoveTo(180, 229 + (pLoginData->niRoleIndex) * 42, hWnd);
-	LeftClick();
-	Sleep(1000);
-	// 进入游戏
-	MoveTo(498, 722, hWnd);
-	LeftClick();
+	EnterCriticalSection(&cs);	// 进入临界区
+	{
+		SwitchToThisWindow(hWnd, TRUE);
+		MoveTo(180, 229 + (pLoginData->niRoleIndex) * 42, hWnd);
+		LeftClick();
+		Sleep(1000);
+		// 进入游戏
+		MoveTo(498, 722, hWnd);
+		LeftClick();
+	}
+	LeaveCriticalSection(&cs);	// 离开临界区
+
 	// 读取人物属性列表基址,判断是否为空,来检测是否进入游戏
 	DWORD dwPid = 0;
 	GetWindowThreadProcessId(hWnd, &dwPid);

@@ -76,6 +76,6 @@ BOOL IsAbleToStartGame();		//是否可以点击"开始游戏"
 BOOL SelDaQuAndStart(DWORD dwIndex);	//选择区服并开始游戏
 void InputString(string strKey);	//输入字符串,用于输入账号和密码
 BOOL IsAbleToInputIdAndPwd();		//是否可以输入账号和密码
-BOOL InputIdAndPwd(CLoginData* pLoginData);				//输入账号和密码
+BOOL InputIdAndPwd(CLoginData* pLoginData, HWND hWnd);		//输入账号和密码
 BOOL AutoLogin(CLoginData* pLoginData);
 
