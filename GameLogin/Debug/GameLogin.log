@@ -1,5 +1,6 @@
 ﻿  MyFunc.cpp
   GameLogin.cpp
   GameLoginDlg.cpp
+e:\vs_myproj\gamelogin\gamelogin\gamelogindlg.cpp(694): error C2084: 函数“BOOL EnumWindowsProc(HWND,LPARAM)”已有主体
+  e:\vs_myproj\gamelogin\gamelogin\gamelogindlg.cpp(159): note: 参见“EnumWindowsProc”的前一个定义
   正在生成代码...
-  GameLogin.vcxproj -> E:\VS_MyProj\test\Debug\GameLogin.exe

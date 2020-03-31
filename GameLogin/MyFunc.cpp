@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void DbgOutput(const char *szFormat, ...) {
+void tracePrint(const char *szFormat, ...) {
 #ifdef _DEBUG
 	char szbufFormat[0x1000];
 	char szBufFormat_Game[0x1008] = "Game:";

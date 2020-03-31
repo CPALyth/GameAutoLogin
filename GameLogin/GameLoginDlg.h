@@ -36,9 +36,9 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
+	CString m_edt_LauncherPath;
 	afx_msg void OnBnClickedBtn_AutoLogin();
 	afx_msg void OnBnClickedBtn_LauncherDir();
-	CString m_edt_LauncherPath;
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnCbnSelchangeCombo1();
 	afx_msg void OnBnClickedBtnAddmsg();
@@ -51,11 +51,12 @@ public:
 	CString GetCmbCurSelItemText(UINT IdOfCtrl, DWORD dwIndex);
 	void SaveListCtlDataToFile();
 	void ReadFileDataToListCtl();
+	int EnumClient();
 	
 };
 
 
-
+// 登录所需数据结构
 class CLoginData
 {
 public:
@@ -78,4 +79,14 @@ void InputString(string strKey);	//输入字符串,用于输入账号和密码
 BOOL IsAbleToInputIdAndPwd();		//是否可以输入账号和密码
 BOOL InputIdAndPwd(CLoginData* pLoginData, HWND hWnd);		//输入账号和密码
 BOOL AutoLogin(CLoginData* pLoginData);
+
+// 客户端数据结构
+class CClientData
+{
+public:
+	HWND hGame;
+	DWORD dwPid;
+	HANDLE hProcess;
+	char szGameCaption[40];	// 游戏窗口标题 = 游戏账号
+};
 

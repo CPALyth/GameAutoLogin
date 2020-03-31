@@ -8,7 +8,7 @@
 #include <atlstr.h>
 
 // 调试输出
-void DbgOutput(const char *szFormat, ...);
+void tracePrint(const char *szFormat, ...);
 
 // 数字处理相关
 __int64 Hex2Dec(std::string strHex);

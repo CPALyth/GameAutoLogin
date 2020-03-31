@@ -19,7 +19,8 @@ char szPath_Game[MAX_PATH] = { 0 };		// "热血江湖兵临城下"文件夹的�
 
 
 HDC hdcClient;
-vector<CLoginData> v_UserData;	// 定义一个全局的vector容器存放所有账号信息
+vector<CLoginData> g_vUserData;	// 存放所有账号信息
+vector<CClientData> g_vClientData;	// 存放所有
 CRITICAL_SECTION cs;
 
 
@@ -231,7 +232,7 @@ void WINAPI ThreadFunc(LPVOID pParam)
 //自动登录
 void CGameLoginDlg::OnBnClickedBtn_AutoLogin()
 {
-	for(vector<CLoginData>::iterator it = v_UserData.begin(); it != v_UserData.end(); ++it)
+	for(vector<CLoginData>::iterator it = g_vUserData.begin(); it != g_vUserData.end(); ++it)
 	{
 		CLoginData* pLoginData = new CLoginData;
 		strcpy_s(pLoginData->szUserName, it->szUserName);
@@ -281,7 +282,7 @@ BOOL IsAbleToStartGame()
 	if (hWnd == NULL)	return FALSE;
 	HDC hdcClient = GetDC(hWnd);
 	DWORD dwBGR = GetPixel(hdcClient, 204, 467);	//取窗口客户区一个点的颜色BGR: 0a0a0a
-	DbgOutput("%X\n", dwBGR);
+	tracePrint("%X\n", dwBGR);
 	if (dwBGR == 0x0a0a0a)	return TRUE;
 	return FALSE;
 }
@@ -343,31 +344,31 @@ BOOL IsAbleToInputIdAndPwd()
 	if (hWnd == NULL)	return FALSE;
 	hdcClient = GetDC(hWnd);
 	DWORD dwBGR = GetPixel(hdcClient, 382, 154);	//取窗口客户区一个点的颜色BGR: 78D0FE
-	DbgOutput("%X\n", dwBGR);
+	tracePrint("%X\n", dwBGR);
 	if (dwBGR == 0x78D0FE)	return TRUE;
 	return FALSE;
 }
 
 BOOL InputIdAndPwd(CLoginData* pLoginData,HWND hWnd)
 {
-	DbgOutput("开始输入账号和密码\n");
+	tracePrint("开始输入账号和密码\n");
 	Sleep(100);
 	KeyPress(VK_SHIFT);	//切换为英文输入法
 
-	DbgOutput("输入账号\n");
+	tracePrint("输入账号\n");
 	InputString(pLoginData->szUserName);	//输入账号
 	KeyPress(VK_TAB);	//TAB切换到密码编辑框
 
-	DbgOutput("输入密码\n");
+	tracePrint("输入密码\n");
 	InputString(pLoginData->szPwd);		//输入密码
 	KeyPress(VK_RETURN);	//Enter登录游戏
 	Sleep(3000);
 
 	DWORD dwBGR = GetPixel(hdcClient, 498, 432);	//取窗口客户区一个点的颜色BGR: E9EBEA
-	DbgOutput("颜色BGR:%X\n", dwBGR);
+	tracePrint("颜色BGR:%X\n", dwBGR);
 	if (dwBGR == 0xE9EBEA)
 	{
-		DbgOutput("账号密码输入有误,自动登录失败,将退出游戏\n");
+		tracePrint("账号密码输入有误,自动登录失败,将退出游戏\n");
 		MoveTo(507, 437, hWnd);
 		LeftClick();
 		Sleep(500);
@@ -379,7 +380,7 @@ BOOL InputIdAndPwd(CLoginData* pLoginData,HWND hWnd)
 	{
 		Sleep(500);
 		dwBGR = GetPixel(hdcClient, 309, 385);
-		DbgOutput("还未进入选线窗口,颜色BGR:%X\n", dwBGR);
+		tracePrint("还未进入选线窗口,颜色BGR:%X\n", dwBGR);
 	}
 	return TRUE;
 }
@@ -395,7 +396,7 @@ BOOL AutoLogin(CLoginData* pLoginData)
 		while (hWnd == NULL)
 		{
 			Sleep(500);
-			DbgOutput("登录器还未打开\n");
+			tracePrint("登录器还未打开\n");
 			hWnd = FindWindowA(NULL, "Yulgang_File_Update");
 		}
 		Sleep(1000);
@@ -416,7 +417,7 @@ BOOL AutoLogin(CLoginData* pLoginData)
 		BOOL bRet = InputIdAndPwd(pLoginData,hWnd);
 		if (bRet == FALSE)	return FALSE;
 		// 选线
-		DbgOutput("y=%d\n", 437 + (pLoginData->niXianLu) * 21);
+		tracePrint("y=%d\n", 437 + (pLoginData->niXianLu) * 21);
 		MoveTo(613 + rnd(-20,20), 437 + (pLoginData->niXianLu) * 21, hWnd);
 		LeftDoubleClick();
 	}
@@ -427,7 +428,7 @@ BOOL AutoLogin(CLoginData* pLoginData)
 	while (dwBGR != 0xa4bbbb)
 	{
 		Sleep(500);
-		DbgOutput("颜色BGR:%X\n", dwBGR);
+		tracePrint("颜色BGR:%X\n", dwBGR);
 		dwBGR = GetPixel(hdcClient, 303, 336);
 	}
 	Sleep(500);
@@ -453,10 +454,10 @@ BOOL AutoLogin(CLoginData* pLoginData)
 	{
 		Sleep(1000);
 		ReadProcessMemory(hProcess, (LPCVOID)Base_RoleProperty, buf, 20, NULL);
-		DbgOutput("第 %d 秒, dwName = %s\n", i, buf);
+		tracePrint("第 %d 秒, dwName = %s\n", i, buf);
 		if (buf[0] == 0 && i > 50)
 		{
-			DbgOutput("超过50秒未正常进入游戏,自动登录失败\n");
+			tracePrint("超过50秒未正常进入游戏,自动登录失败\n");
 			TerminateProcess(hProcess, -1);
 			return FALSE;
 		}
@@ -549,7 +550,7 @@ void CGameLoginDlg::OnCbnSelchangeCombo1()
 /* [按钮:添加信息]-[Return:None] */
 void CGameLoginDlg::OnBnClickedBtnAddmsg()
 {
-	DbgOutput("添加登录信息\n");
+	tracePrint("添加登录信息\n");
 	CEdit* pEdt_UserName = (CEdit*)GetDlgItem(IDC_EDIT_USERNAME);
 	CEdit* pEdt_PassWord = (CEdit*)GetDlgItem(IDC_EDIT_PASSWORD);
 	CComboBox* pCmb_DaQu = (CComboBox*)GetDlgItem(IDC_COMBO1);
@@ -565,7 +566,7 @@ void CGameLoginDlg::OnBnClickedBtnAddmsg()
 	CuserData.niXianLu = pCmb_XianLu->GetCurSel();
 	CuserData.niRoleIndex = pCmb_RoleIndex->GetCurSel();
 
-	v_UserData.push_back(CuserData);
+	g_vUserData.push_back(CuserData);
 	InsertListCtl();
 }
 
@@ -579,7 +580,7 @@ void CGameLoginDlg::OnBnClickedBtnDel()
 	int rowToDelete = pLstC->GetNextSelectedItem(pos);	// 获取选中项的项数 (行数)
 	if (rowToDelete < 0)	return;	// 未选中项则直接返回
 
-	v_UserData.erase(v_UserData.begin() + rowToDelete);	// 容器中清除该元素
+	g_vUserData.erase(g_vUserData.begin() + rowToDelete);	// 容器中清除该元素
 	// 删除表格中对应项
 	pLstC->DeleteItem(rowToDelete);
 }
@@ -603,12 +604,12 @@ void CGameLoginDlg::InsertListCtl()
 	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
 	
 	int iRow = pLstC->GetItemCount();	// 获取项数 (行数),实现尾插
-	pLstC->InsertItem(iRow, v_UserData[iRow].szUserName);	// 账号
-	pLstC->SetItemText(iRow, 1, v_UserData[iRow].szPwd);		// 密码
-	pLstC->SetItemText(iRow, 2, GetCmbCurSelItemText(IDC_COMBO1, v_UserData[iRow].niDaQu));		// 大区
-	pLstC->SetItemText(iRow, 3, GetCmbCurSelItemText(IDC_COMBO2, v_UserData[iRow].niServer));	// 服务器
-	pLstC->SetItemText(iRow, 4, GetCmbCurSelItemText(IDC_COMBO3, v_UserData[iRow].niXianLu));	// 线路
-	pLstC->SetItemText(iRow, 5, GetCmbCurSelItemText(IDC_COMBO4, v_UserData[iRow].niRoleIndex));	// 角色	
+	pLstC->InsertItem(iRow, g_vUserData[iRow].szUserName);	// 账号
+	pLstC->SetItemText(iRow, 1, g_vUserData[iRow].szPwd);		// 密码
+	pLstC->SetItemText(iRow, 2, GetCmbCurSelItemText(IDC_COMBO1, g_vUserData[iRow].niDaQu));		// 大区
+	pLstC->SetItemText(iRow, 3, GetCmbCurSelItemText(IDC_COMBO2, g_vUserData[iRow].niServer));	// 服务器
+	pLstC->SetItemText(iRow, 4, GetCmbCurSelItemText(IDC_COMBO3, g_vUserData[iRow].niXianLu));	// 线路
+	pLstC->SetItemText(iRow, 5, GetCmbCurSelItemText(IDC_COMBO4, g_vUserData[iRow].niRoleIndex));	// 角色	
 }
 
 /* [2020/03/26 10:05]-[Remark: None] */
@@ -618,7 +619,7 @@ void CGameLoginDlg::UpdateListCtl()
 	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
 	pLstC->DeleteAllItems();	// 先清空列表框
 	int iRow = 0;
-	for(vector<CLoginData>::iterator it = v_UserData.begin(); it != v_UserData.end(); ++it,++iRow)
+	for(vector<CLoginData>::iterator it = g_vUserData.begin(); it != g_vUserData.end(); ++it,++iRow)
 	{
 		pLstC->InsertItem(iRow, it->szUserName);
 		pLstC->SetItemText(iRow, 1, it->szPwd);
@@ -644,12 +645,12 @@ void CGameLoginDlg::SaveListCtlDataToFile()
 	ofs.open(LoginConfig, ios::out | ios::binary);
 	if (!ofs.is_open())
 	{
-		DbgOutput("文件打开失败\n");
+		tracePrint("文件打开失败\n");
 	}
 	else
 	{
-		DbgOutput("正在保存列表框数据到文件LoginConfig.bin...\n");
-		for(vector<CLoginData>::iterator it = v_UserData.begin(); it != v_UserData.end(); ++it)
+		tracePrint("正在保存列表框数据到文件LoginConfig.bin...\n");
+		for(vector<CLoginData>::iterator it = g_vUserData.begin(); it != g_vUserData.end(); ++it)
 		{
 			ofs.write(it->szUserName, sizeof(it->szUserName));
 			ofs.write(it->szPwd, sizeof(it->szPwd));
@@ -658,7 +659,7 @@ void CGameLoginDlg::SaveListCtlDataToFile()
 			ofs.write((char*)&(it->niXianLu), sizeof(it->niXianLu));
 			ofs.write((char*)&(it->niRoleIndex), sizeof(it->niRoleIndex));
 		}
-		DbgOutput("保存列表框数据成功!\n");
+		tracePrint("保存列表框数据成功!\n");
 	}
 	ofs.close();
 }
@@ -670,22 +671,49 @@ void CGameLoginDlg::ReadFileDataToListCtl()
 	CLoginData CuserData;
 	if (!ifs.is_open())
 	{
-		DbgOutput("文件打开失败\n");
+		tracePrint("文件打开失败\n");
 	}
 	else
 	{
-		v_UserData.clear();	//先清除原有数据
-		DbgOutput("正在从文件LoginConfig.bin读取列表框数据...\n");
+		g_vUserData.clear();	//先清除原有数据
+		tracePrint("正在从文件LoginConfig.bin读取列表框数据...\n");
 		while (TRUE)	
 		{
 			ifs.read((char*)&CuserData, sizeof(CuserData));
 			if (ifs.eof())	break;	// eof会多读一次
-			v_UserData.push_back(CuserData);
+			g_vUserData.push_back(CuserData);
 		}
-		DbgOutput("读取列表框数据成功!\n");
+		tracePrint("读取列表框数据成功!\n");
 	}
 	ifs.close();
 	UpdateListCtl();
+}
+
+#define GameClassName "D3D Window"
+BOOL CALLBACK EnumClientProc(HWND hwnd, LPARAM lParam)
+{
+	vector<CClientData>* pVct = (vector<CClientData>*)lParam;
+	CClientData clientData = { 0 };
+	// 判断hwnd是否是游戏窗口句柄
+	char szClassName[256];
+	GetClassNameA(hwnd, szClassName, sizeof(szClassName));
+	if (strcmp(szClassName, GameClassName) == 0)
+	{
+		clientData.hGame = hwnd;
+		GetWindowThreadProcessId(hwnd, &clientData.dwPid);
+		clientData.hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, clientData.dwPid);
+		GetWindowTextA(hwnd, clientData.szGameCaption, sizeof(clientData.szGameCaption));
+
+		pVct->push_back(clientData);
+	}
+	return TRUE;
+}
+
+int CGameLoginDlg::EnumClient()
+{
+	g_vClientData.clear();
+	EnumWindows(EnumClientProc, (LPARAM)&g_vClientData); //把所有游戏窗口信息都装到容器里
+	return 0;
 }
 
 
