@@ -33,6 +33,9 @@
     <ClInclude Include="MyFunc.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="BaseGame.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameLogin.cpp">

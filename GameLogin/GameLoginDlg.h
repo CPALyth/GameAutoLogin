@@ -51,8 +51,9 @@ public:
 	CString GetCmbCurSelItemText(UINT IdOfCtrl, DWORD dwIndex);
 	void SaveListCtlDataToFile();
 	void ReadFileDataToListCtl();
-	int EnumClient();
-	
+	void EnumClient();
+	void OfflineReLogin();
+	afx_msg void OnBnClickedButton2();
 };
 
 
@@ -61,11 +62,12 @@ class CLoginData
 {
 public:
 	char szUserName[30];	//账号
-	char szPwd[30];		//密码
-	UINT niDaQu;		//大区
-	UINT niServer;		//几服
-	UINT niXianLu;	//几线
+	char szPwd[30];			//密码
+	UINT niDaQu;			//大区
+	UINT niServer;			//几服
+	UINT niXianLu;			//几线
 	UINT niRoleIndex;		//第几个角色
+	char szRoleName[20];	// 角色名
 };
 
 enum DaQu{网通一区,网通二区,网通三区,网通四区,电信一区,电信二区,电信三区,电信四区,电信五区,电信六区};
@@ -88,5 +90,7 @@ public:
 	DWORD dwPid;
 	HANDLE hProcess;
 	char szGameCaption[40];	// 游戏窗口标题 = 游戏账号
+	int iSocket;			// 套接字,判断是否掉线
+	char szRoleName[20];	// 角色名
 };
 

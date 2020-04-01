@@ -1,13 +1,13 @@
 ﻿
 // GameLoginDlg.cpp: 实现文件
 //
-
+#include <iostream>
 #include "framework.h"
 #include "GameLogin.h"
 #include "GameLoginDlg.h"
 #include "afxdialogex.h"
 #include "MyFunc.h"
-#include <iostream>
+#include "BaseGame.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -19,8 +19,8 @@ char szPath_Game[MAX_PATH] = { 0 };		// "热血江湖兵临城下"文件夹的�
 
 
 HDC hdcClient;
-vector<CLoginData> g_vUserData;	// 存放所有账号信息
-vector<CClientData> g_vClientData;	// 存放所有
+vector<CLoginData> g_vLoginData;	// 存放所有账号信息
+vector<CClientData> g_vClientData;	// 存放所有窗口信息
 CRITICAL_SECTION cs;
 
 
@@ -76,6 +76,7 @@ BEGIN_MESSAGE_MAP(CGameLoginDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_DEL, &CGameLoginDlg::OnBnClickedBtnDel)
 	ON_BN_CLICKED(IDC_BTN_SAVECFG, &CGameLoginDlg::OnBnClickedBtnSavecfg)
 	ON_BN_CLICKED(IDC_BTN_READCFG, &CGameLoginDlg::OnBnClickedBtnReadcfg)
+	ON_BN_CLICKED(IDC_BUTTON2, &CGameLoginDlg::OnBnClickedButton2)
 END_MESSAGE_MAP()
 
 
@@ -222,26 +223,24 @@ void CGameLoginDlg::OnBnClickedBtn_LauncherDir()
 
 
 //线程函数
-void WINAPI ThreadFunc(LPVOID pParam)
+void WINAPI Thread_AutoLogin(LPVOID pParam)
 {
-	CLoginData* pLD = (CLoginData*)pParam;
-	AutoLogin(pLD);
-	delete pLD;
+	AutoLogin((CLoginData*)pParam);
 }
 
 //自动登录
 void CGameLoginDlg::OnBnClickedBtn_AutoLogin()
 {
-	for(vector<CLoginData>::iterator it = g_vUserData.begin(); it != g_vUserData.end(); ++it)
+	for(vector<CLoginData>::iterator it = g_vLoginData.begin(); it != g_vLoginData.end(); ++it)
 	{
-		CLoginData* pLoginData = new CLoginData;
-		strcpy_s(pLoginData->szUserName, it->szUserName);
-		strcpy_s(pLoginData->szPwd, it->szPwd);
-		pLoginData->niDaQu = it->niDaQu;
-		pLoginData->niServer = it->niServer;
-		pLoginData->niXianLu = it->niXianLu;
-		pLoginData->niRoleIndex = it->niRoleIndex;
-		HANDLE hThread = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ThreadFunc, pLoginData, NULL, NULL);
+		//CLoginData* pLoginData = new CLoginData;
+		//strcpy_s(pLoginData->szUserName, it->szUserName);
+		//strcpy_s(pLoginData->szPwd, it->szPwd);
+		//pLoginData->niDaQu = it->niDaQu;
+		//pLoginData->niServer = it->niServer;
+		//pLoginData->niXianLu = it->niXianLu;
+		//pLoginData->niRoleIndex = it->niRoleIndex;
+		HANDLE hThread = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)Thread_AutoLogin, &(*it), NULL, NULL);
 		CloseHandle(hThread);
 	}
 }
@@ -269,7 +268,7 @@ void RunLaucher()
 
 	//Inline Hook
 	BYTE byWriteBuf = 0xEB;
-	HANDLE hProcess = ::OpenProcess(PROCESS_ALL_ACCESS, FALSE, pi.dwProcessId);
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pi.dwProcessId);
 	WriteProcessMemory(hProcess, (DWORD*)MultiOpenAddr, &byWriteBuf, 1, NULL);
 
 	//恢复主线程
@@ -344,7 +343,6 @@ BOOL IsAbleToInputIdAndPwd()
 	if (hWnd == NULL)	return FALSE;
 	hdcClient = GetDC(hWnd);
 	DWORD dwBGR = GetPixel(hdcClient, 382, 154);	//取窗口客户区一个点的颜色BGR: 78D0FE
-	tracePrint("%X\n", dwBGR);
 	if (dwBGR == 0x78D0FE)	return TRUE;
 	return FALSE;
 }
@@ -417,7 +415,6 @@ BOOL AutoLogin(CLoginData* pLoginData)
 		BOOL bRet = InputIdAndPwd(pLoginData,hWnd);
 		if (bRet == FALSE)	return FALSE;
 		// 选线
-		tracePrint("y=%d\n", 437 + (pLoginData->niXianLu) * 21);
 		MoveTo(613 + rnd(-20,20), 437 + (pLoginData->niXianLu) * 21, hWnd);
 		LeftDoubleClick();
 	}
@@ -428,7 +425,7 @@ BOOL AutoLogin(CLoginData* pLoginData)
 	while (dwBGR != 0xa4bbbb)
 	{
 		Sleep(500);
-		tracePrint("颜色BGR:%X\n", dwBGR);
+		//tracePrint("颜色BGR:%X\n", dwBGR);
 		dwBGR = GetPixel(hdcClient, 303, 336);
 	}
 	Sleep(500);
@@ -463,7 +460,8 @@ BOOL AutoLogin(CLoginData* pLoginData)
 		}
 		else if (buf[0] != 0)
 		{
-			SetWindowTextA(hWnd, (LPCTSTR)buf);	//设置窗口名为人物角色名
+			strcpy_s(pLoginData->szRoleName, buf);
+			SetWindowTextA(hWnd, (LPCTSTR)pLoginData->szRoleName);	//设置窗口名为人物角色名
 			Sleep(2000);
 			break;
 		}
@@ -566,7 +564,7 @@ void CGameLoginDlg::OnBnClickedBtnAddmsg()
 	CuserData.niXianLu = pCmb_XianLu->GetCurSel();
 	CuserData.niRoleIndex = pCmb_RoleIndex->GetCurSel();
 
-	g_vUserData.push_back(CuserData);
+	g_vLoginData.push_back(CuserData);
 	InsertListCtl();
 }
 
@@ -580,7 +578,7 @@ void CGameLoginDlg::OnBnClickedBtnDel()
 	int rowToDelete = pLstC->GetNextSelectedItem(pos);	// 获取选中项的项数 (行数)
 	if (rowToDelete < 0)	return;	// 未选中项则直接返回
 
-	g_vUserData.erase(g_vUserData.begin() + rowToDelete);	// 容器中清除该元素
+	g_vLoginData.erase(g_vLoginData.begin() + rowToDelete);	// 容器中清除该元素
 	// 删除表格中对应项
 	pLstC->DeleteItem(rowToDelete);
 }
@@ -604,12 +602,12 @@ void CGameLoginDlg::InsertListCtl()
 	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
 	
 	int iRow = pLstC->GetItemCount();	// 获取项数 (行数),实现尾插
-	pLstC->InsertItem(iRow, g_vUserData[iRow].szUserName);	// 账号
-	pLstC->SetItemText(iRow, 1, g_vUserData[iRow].szPwd);		// 密码
-	pLstC->SetItemText(iRow, 2, GetCmbCurSelItemText(IDC_COMBO1, g_vUserData[iRow].niDaQu));		// 大区
-	pLstC->SetItemText(iRow, 3, GetCmbCurSelItemText(IDC_COMBO2, g_vUserData[iRow].niServer));	// 服务器
-	pLstC->SetItemText(iRow, 4, GetCmbCurSelItemText(IDC_COMBO3, g_vUserData[iRow].niXianLu));	// 线路
-	pLstC->SetItemText(iRow, 5, GetCmbCurSelItemText(IDC_COMBO4, g_vUserData[iRow].niRoleIndex));	// 角色	
+	pLstC->InsertItem(iRow, g_vLoginData[iRow].szUserName);	// 账号
+	pLstC->SetItemText(iRow, 1, g_vLoginData[iRow].szPwd);		// 密码
+	pLstC->SetItemText(iRow, 2, GetCmbCurSelItemText(IDC_COMBO1, g_vLoginData[iRow].niDaQu));		// 大区
+	pLstC->SetItemText(iRow, 3, GetCmbCurSelItemText(IDC_COMBO2, g_vLoginData[iRow].niServer));	// 服务器
+	pLstC->SetItemText(iRow, 4, GetCmbCurSelItemText(IDC_COMBO3, g_vLoginData[iRow].niXianLu));	// 线路
+	pLstC->SetItemText(iRow, 5, GetCmbCurSelItemText(IDC_COMBO4, g_vLoginData[iRow].niRoleIndex));	// 角色	
 }
 
 /* [2020/03/26 10:05]-[Remark: None] */
@@ -619,7 +617,7 @@ void CGameLoginDlg::UpdateListCtl()
 	CListCtrl* pLstC = (CListCtrl*)GetDlgItem(IDC_LIST1);
 	pLstC->DeleteAllItems();	// 先清空列表框
 	int iRow = 0;
-	for(vector<CLoginData>::iterator it = g_vUserData.begin(); it != g_vUserData.end(); ++it,++iRow)
+	for(vector<CLoginData>::iterator it = g_vLoginData.begin(); it != g_vLoginData.end(); ++it,++iRow)
 	{
 		pLstC->InsertItem(iRow, it->szUserName);
 		pLstC->SetItemText(iRow, 1, it->szPwd);
@@ -650,7 +648,7 @@ void CGameLoginDlg::SaveListCtlDataToFile()
 	else
 	{
 		tracePrint("正在保存列表框数据到文件LoginConfig.bin...\n");
-		for(vector<CLoginData>::iterator it = g_vUserData.begin(); it != g_vUserData.end(); ++it)
+		for(vector<CLoginData>::iterator it = g_vLoginData.begin(); it != g_vLoginData.end(); ++it)
 		{
 			ofs.write(it->szUserName, sizeof(it->szUserName));
 			ofs.write(it->szPwd, sizeof(it->szPwd));
@@ -675,13 +673,14 @@ void CGameLoginDlg::ReadFileDataToListCtl()
 	}
 	else
 	{
-		g_vUserData.clear();	//先清除原有数据
+		g_vLoginData.clear();	//先清除原有数据
 		tracePrint("正在从文件LoginConfig.bin读取列表框数据...\n");
 		while (TRUE)	
 		{
 			ifs.read((char*)&CuserData, sizeof(CuserData));
+			
+			g_vLoginData.push_back(CuserData);
 			if (ifs.eof())	break;	// eof会多读一次
-			g_vUserData.push_back(CuserData);
 		}
 		tracePrint("读取列表框数据成功!\n");
 	}
@@ -702,20 +701,69 @@ BOOL CALLBACK EnumClientProc(HWND hwnd, LPARAM lParam)
 		clientData.hGame = hwnd;
 		GetWindowThreadProcessId(hwnd, &clientData.dwPid);
 		clientData.hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, clientData.dwPid);
+
+		// 获取窗口标题
 		GetWindowTextA(hwnd, clientData.szGameCaption, sizeof(clientData.szGameCaption));
 
+		// 读取是否掉线 [Call_SendData_Ecx]+0x30
+		DWORD buf;
+		ReadProcessMemory(clientData.hProcess, (LPCVOID)Call_SendData_Ecx, 
+			&buf, 4, NULL); // buf = [Call_SendData_Ecx]
+		ReadProcessMemory(clientData.hProcess, (LPCVOID)(buf + 0x30), 
+			&clientData.iSocket, 4, NULL);	// clientData.bSocket = [buf+0x30]
+
+		// 读取角色名字
+		ReadProcessMemory(clientData.hProcess, (LPCVOID)Base_RoleProperty,
+			clientData.szRoleName, sizeof(clientData.szRoleName), NULL);
+
+
 		pVct->push_back(clientData);
+		tracePrint("游戏句柄:%X,	进程ID:%X,	进程句柄:%X,	窗口标题:%s,	套接字:%X,	角色名:%s\n", 
+			clientData.hGame, 
+			clientData.dwPid,
+			clientData.hProcess,
+			clientData.szGameCaption,
+			clientData.iSocket,
+			clientData.szRoleName);
 	}
 	return TRUE;
 }
 
-int CGameLoginDlg::EnumClient()
+void CGameLoginDlg::EnumClient()
 {
 	g_vClientData.clear();
 	EnumWindows(EnumClientProc, (LPARAM)&g_vClientData); //把所有游戏窗口信息都装到容器里
-	return 0;
 }
 
+void CGameLoginDlg::OfflineReLogin()
+{
+	EnumClient(); // 更新g_vClientData容器数据
+	for(vector<CClientData>::iterator it = g_vClientData.begin(); it != g_vClientData.end(); ++it)
+	{
+		if (it->iSocket == -1)	// 掉线
+		{
+			tracePrint("检测到有窗口掉线\n");
+			for(UINT i = 0; i < g_vLoginData.size(); ++i)
+			{
+				tracePrint("it->szRoleName:%s, g_vLoginData[i].szRoleName:%s\n",
+					it->szRoleName, g_vLoginData[i].szRoleName);
+				if (strcmp(it->szRoleName,g_vLoginData[i].szRoleName)==0)	// 找到掉线进程
+				{
+					tracePrint("发现掉线进程,正在重新登录\n");
+					TerminateProcess(it->hProcess, -1);	// 终止掉线进程
+					Sleep(1000);
+					AutoLogin(&g_vLoginData[i]);
+				}
+			}
+		}
+		else
+		{
+			tracePrint("所有游戏窗口与服务器连接正常\n");
+		}
+	}
+}
 
-
-
+void CGameLoginDlg::OnBnClickedButton2()
+{
+	OfflineReLogin();
+}

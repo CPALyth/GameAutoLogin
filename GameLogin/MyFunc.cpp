@@ -5,7 +5,7 @@ using namespace std;
 void tracePrint(const char *szFormat, ...) {
 #ifdef _DEBUG
 	char szbufFormat[0x1000];
-	char szBufFormat_Game[0x1008] = "Game:";
+	char szBufFormat_Game[0x1010] = "CPALyth:";
 	va_list argList;
 	va_start(argList, szFormat);     //参数列表初始化
 	vsprintf_s(szbufFormat, szFormat, argList);
