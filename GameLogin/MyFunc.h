@@ -10,7 +10,7 @@
 // 调试输出
 void tracePrint(const char *szFormat, ...);
 
-// 数字处理相关
+// 类型转换
 __int64 Hex2Dec(std::string strHex);
 
 // 键鼠操作
@@ -19,6 +19,9 @@ void LeftClick();
 void LeftDoubleClick();
 void KeyPress(BYTE vk_Code);
 
+// 进程线程
+BOOL EndProcess(LPCTSTR className, LPCTSTR captionName);	//结束进程
+
 // 随机数
 template<class T>
 T rnd(T _begin, T _end);
@@ -26,3 +29,13 @@ T rnd(T _begin, T _end);
 // 数据类型转换
 LPCTSTR int2LPCSTR(int a);
 
+// 异常处理
+enum ExceptionType{ ErrorOnLauncher,ErrorOnClient};
+struct MyException
+{
+	int m_ErrorType;
+	MyException(int errorType):m_ErrorType(errorType)
+	{
+		tracePrint("发生异常,异常类型:%d", m_ErrorType);
+	}
+};

@@ -45,29 +45,31 @@ public:
 	afx_msg void OnBnClickedBtnDel();
 	afx_msg void OnBnClickedBtnSavecfg();
 	afx_msg void OnBnClickedBtnReadcfg();
+	afx_msg void OnBnClickedButton2();
 
 	void InsertListCtl();
 	void UpdateListCtl();
 	CString GetCmbCurSelItemText(UINT IdOfCtrl, DWORD dwIndex);
 	void SaveListCtlDataToFile();
 	void ReadFileDataToListCtl();
-	void EnumClient();
-	void OfflineReLogin();
-	afx_msg void OnBnClickedButton2();
 };
 
+void GetAllClientInfo();
+void OfflineReLogin();
+void UpdateOnlineState();
 
 // 登录所需数据结构
 class CLoginData
 {
 public:
-	char szUserName[30];	//账号
-	char szPwd[30];			//密码
-	UINT niDaQu;			//大区
-	UINT niServer;			//几服
-	UINT niXianLu;			//几线
-	UINT niRoleIndex;		//第几个角色
+	char szUserName[30];	// 账号
+	char szPwd[30];			// 密码
+	UINT niDaQu;			// 大区
+	UINT niServer;			// 几服
+	UINT niXianLu;			// 几线
+	UINT niRoleIndex;		// 第几个角色
 	char szRoleName[20];	// 角色名
+	BOOL isOnline;			// 是否在线
 };
 
 enum DaQu{网通一区,网通二区,网通三区,网通四区,电信一区,电信二区,电信三区,电信四区,电信五区,电信六区};

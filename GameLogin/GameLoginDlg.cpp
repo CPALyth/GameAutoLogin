@@ -223,9 +223,27 @@ void CGameLoginDlg::OnBnClickedBtn_LauncherDir()
 
 
 //线程函数
-void WINAPI Thread_AutoLogin(LPVOID pParam)
+void WINAPI Thread_AutoLogin(LPVOID pLoginData)
 {
-	AutoLogin((CLoginData*)pParam);
+	for(int i = 0; i < 3; ++i)
+	{
+		try
+		{
+			if (AutoLogin((CLoginData*)pLoginData) == FALSE)
+			{
+				EndProcess(NULL, "正在登录...");	// 结束客户端
+			}
+			else
+			{
+				tracePrint("登录成功\n");
+				break;
+			}
+		}
+		catch (...)
+		{
+			EndProcess(NULL, "Yulgang_File_Update");	// 结束登录器
+		}
+	}
 }
 
 //自动登录
@@ -233,13 +251,6 @@ void CGameLoginDlg::OnBnClickedBtn_AutoLogin()
 {
 	for(vector<CLoginData>::iterator it = g_vLoginData.begin(); it != g_vLoginData.end(); ++it)
 	{
-		//CLoginData* pLoginData = new CLoginData;
-		//strcpy_s(pLoginData->szUserName, it->szUserName);
-		//strcpy_s(pLoginData->szPwd, it->szPwd);
-		//pLoginData->niDaQu = it->niDaQu;
-		//pLoginData->niServer = it->niServer;
-		//pLoginData->niXianLu = it->niXianLu;
-		//pLoginData->niRoleIndex = it->niRoleIndex;
 		HANDLE hThread = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)Thread_AutoLogin, &(*it), NULL, NULL);
 		CloseHandle(hThread);
 	}
@@ -299,8 +310,12 @@ BOOL SelDaQuAndStart(DWORD dwIndex)
 	MoveTo(x, y,hWnd);
 	LeftClick();
 	//等待 开始游戏按钮 显示
-	while (!IsAbleToStartGame())	Sleep(500);
-	Sleep(500);
+	int sec = 0;
+	while (!IsAbleToStartGame())
+	{
+		Sleep(1000);
+		if (++sec > 20)	return FALSE;
+	}
 
 	// 点击"开始游戏"
 	MoveTo(66, 428, hWnd);
@@ -374,12 +389,6 @@ BOOL InputIdAndPwd(CLoginData* pLoginData,HWND hWnd)
 		LeftClick();
 		return FALSE;
 	}
-	while (dwBGR != 0x0000b4)
-	{
-		Sleep(500);
-		dwBGR = GetPixel(hdcClient, 309, 385);
-		tracePrint("还未进入选线窗口,颜色BGR:%X\n", dwBGR);
-	}
 	return TRUE;
 }
 
@@ -387,6 +396,8 @@ BOOL InputIdAndPwd(CLoginData* pLoginData,HWND hWnd)
 BOOL AutoLogin(CLoginData* pLoginData)
 {
 	HWND hWnd = NULL;
+	BOOL bRet = FALSE;
+	DWORD dwBGR = NULL;
 	EnterCriticalSection(&cs);	// 进入临界区
 	{
 		// 启动登录器,并等待登录器初始化完成
@@ -401,44 +412,75 @@ BOOL AutoLogin(CLoginData* pLoginData)
 
 		// 把登录器窗口前置
 		SwitchToThisWindow(hWnd, TRUE);
-		SelDaQuAndStart(pLoginData->niDaQu);	//选择区服
+		bRet = SelDaQuAndStart(pLoginData->niDaQu);	//选择区服
+		if (bRet == FALSE)
+		{
+			LeaveCriticalSection(&cs);	// 离开临界区
+			throw ErrorOnLauncher;
+		}
 
 		// 一直等待直到可以输入账号密码
-		while (!IsAbleToInputIdAndPwd())	Sleep(500);
+		int sec = 0;
+		while (!IsAbleToInputIdAndPwd())
+		{
+			Sleep(1000);
+			if (++sec > 20)
+			{
+				LeaveCriticalSection(&cs);	// 离开临界区
+				throw ErrorOnLauncher;
+			}
+		}
 
 		// 把游戏窗口前置
 		hWnd = FindWindowA(NULL, "YB_OnlineClient");
-		if (hWnd == NULL)	return FALSE;
+		if (hWnd == NULL)
+		{
+			LeaveCriticalSection(&cs);	// 离开临界区
+			return FALSE;
+		}
 		SwitchToThisWindow(hWnd, TRUE);
+
+		// 开始登录
 		SetWindowTextA(hWnd, "正在登录...");	// 修改窗口标题
+		SetWindowPos(hWnd, HWND_TOP, rnd(0, 300), rnd(0, 200), NULL, NULL, SWP_NOSIZE);
 		// 输入账号和密码
-		BOOL bRet = InputIdAndPwd(pLoginData,hWnd);
-		if (bRet == FALSE)	return FALSE;
+		bRet = InputIdAndPwd(pLoginData,hWnd);
+		if (bRet == FALSE)
+		{
+			LeaveCriticalSection(&cs);	// 离开临界区
+			return FALSE;
+		}
 		// 选线
+		while (dwBGR != 0x0000b4)
+		{
+			Sleep(500);
+			dwBGR = GetPixel(hdcClient, 309, 385);
+		}
 		MoveTo(613 + rnd(-20,20), 437 + (pLoginData->niXianLu) * 21, hWnd);
 		LeftDoubleClick();
 	}
 	LeaveCriticalSection(&cs);	// 离开临界区
 
 	// 等待直到可以选择游戏角色
-	DWORD dwBGR = NULL;
+	dwBGR = NULL;
+	int sec = 0;
 	while (dwBGR != 0xa4bbbb)
 	{
-		Sleep(500);
-		//tracePrint("颜色BGR:%X\n", dwBGR);
+		Sleep(1000);
+		if (++sec > 40)	return FALSE;	//超过40秒说明登录异常
 		dwBGR = GetPixel(hdcClient, 303, 336);
 	}
-	Sleep(500);
 	
 	EnterCriticalSection(&cs);	// 进入临界区
 	{
 		SwitchToThisWindow(hWnd, TRUE);
 		MoveTo(180, 229 + (pLoginData->niRoleIndex) * 42, hWnd);
 		LeftClick();
-		Sleep(1000);
+		Sleep(500);
 		// 进入游戏
 		MoveTo(498, 722, hWnd);
 		LeftClick();
+		Sleep(500);
 	}
 	LeaveCriticalSection(&cs);	// 离开临界区
 
@@ -455,7 +497,6 @@ BOOL AutoLogin(CLoginData* pLoginData)
 		if (buf[0] == 0 && i > 50)
 		{
 			tracePrint("超过50秒未正常进入游戏,自动登录失败\n");
-			TerminateProcess(hProcess, -1);
 			return FALSE;
 		}
 		else if (buf[0] != 0)
@@ -636,36 +677,36 @@ CString CGameLoginDlg::GetCmbCurSelItemText(UINT IdOfCtrl,DWORD dwIndex)
 	return cStr;
 }
 
-#define LoginConfig "C:/LoginConfig.bin"
-void CGameLoginDlg::SaveListCtlDataToFile()
+#define LoginConfig "C:/LoginConfig.ini"
+void CGameLoginDlg::SaveListCtlDataToFile()	// 写文件
 {
 	ofstream ofs;
-	ofs.open(LoginConfig, ios::out | ios::binary);
+	ofs.open(LoginConfig, ios::out);	// 打开输出文件流
 	if (!ofs.is_open())
 	{
 		tracePrint("文件打开失败\n");
 	}
 	else
 	{
-		tracePrint("正在保存列表框数据到文件LoginConfig.bin...\n");
+		tracePrint("正在保存列表框数据到文件LoginConfig.ini...\n");
 		for(vector<CLoginData>::iterator it = g_vLoginData.begin(); it != g_vLoginData.end(); ++it)
 		{
-			ofs.write(it->szUserName, sizeof(it->szUserName));
-			ofs.write(it->szPwd, sizeof(it->szPwd));
-			ofs.write((char*)&(it->niDaQu), sizeof(it->niDaQu));
-			ofs.write((char*)&(it->niServer), sizeof(it->niServer));
-			ofs.write((char*)&(it->niXianLu), sizeof(it->niXianLu));
-			ofs.write((char*)&(it->niRoleIndex), sizeof(it->niRoleIndex));
+			ofs << it->szUserName << endl;
+			ofs << it->szPwd << endl;
+			ofs << it->niDaQu << endl;
+			ofs << it->niServer << endl;
+			ofs << it->niXianLu << endl;
+			ofs << it->niRoleIndex << endl;
 		}
 		tracePrint("保存列表框数据成功!\n");
 	}
-	ofs.close();
+	ofs.close();	// 关闭输出文件流
 }
 
-void CGameLoginDlg::ReadFileDataToListCtl()
+void CGameLoginDlg::ReadFileDataToListCtl()	// 读文件
 {
 	ifstream ifs;
-	ifs.open(LoginConfig, ios::in | ios::binary);
+	ifs.open(LoginConfig, ios::in);	// 打开输入文件流
 	CLoginData CuserData;
 	if (!ifs.is_open())
 	{
@@ -674,17 +715,34 @@ void CGameLoginDlg::ReadFileDataToListCtl()
 	else
 	{
 		g_vLoginData.clear();	//先清除原有数据
-		tracePrint("正在从文件LoginConfig.bin读取列表框数据...\n");
-		while (TRUE)	
+		tracePrint("正在从文件LoginConfig.ini读取列表框数据...\n");
+		char buf[1024] = { 0 };
+		while (ifs.eof() == FALSE)	
 		{
-			ifs.read((char*)&CuserData, sizeof(CuserData));
-			
+			ifs.getline(buf, sizeof(buf));
+			if(buf[0]==0)	break;
+			strcpy_s(CuserData.szUserName, buf);
+
+			ifs.getline(buf, sizeof(buf));
+			strcpy_s(CuserData.szPwd, buf);
+
+			ifs.getline(buf, sizeof(buf));
+			CuserData.niDaQu = atoi(buf);
+
+			ifs.getline(buf, sizeof(buf));
+			CuserData.niServer = atoi(buf);
+
+			ifs.getline(buf, sizeof(buf));
+			CuserData.niXianLu = atoi(buf);
+
+			ifs.getline(buf, sizeof(buf));
+			CuserData.niRoleIndex = atoi(buf);
+
 			g_vLoginData.push_back(CuserData);
-			if (ifs.eof())	break;	// eof会多读一次
 		}
 		tracePrint("读取列表框数据成功!\n");
 	}
-	ifs.close();
+	ifs.close();		// 关闭输入文件流
 	UpdateListCtl();
 }
 
@@ -729,36 +787,48 @@ BOOL CALLBACK EnumClientProc(HWND hwnd, LPARAM lParam)
 	return TRUE;
 }
 
-void CGameLoginDlg::EnumClient()
+/* [2020/04/02 16:05]-[Remark: None] */
+/* [获取当前所有游戏客户端窗口]-[Return:None] */
+void GetAllClientInfo()
 {
 	g_vClientData.clear();
 	EnumWindows(EnumClientProc, (LPARAM)&g_vClientData); //把所有游戏窗口信息都装到容器里
 }
 
-void CGameLoginDlg::OfflineReLogin()
+/* [2020/04/02 16:04]-[Remark: None] */
+/* [掉线重登]-[Return:None] */
+void OfflineReLogin()
 {
-	EnumClient(); // 更新g_vClientData容器数据
-	for(vector<CClientData>::iterator it = g_vClientData.begin(); it != g_vClientData.end(); ++it)
+	// 遍历获取当前所有游戏窗口信息,并更新到g_vClientData容器中
+	GetAllClientInfo(); 
+
+	UpdateOnlineState();	// 更新在线状态
+
+	// 遍历g_vLoginData容器
+	for(UINT i = 0; i < g_vLoginData.size(); ++i)
 	{
-		if (it->iSocket == -1)	// 掉线
+		if (g_vLoginData[i].isOnline == FALSE)
 		{
-			tracePrint("检测到有窗口掉线\n");
-			for(UINT i = 0; i < g_vLoginData.size(); ++i)
-			{
-				tracePrint("it->szRoleName:%s, g_vLoginData[i].szRoleName:%s\n",
-					it->szRoleName, g_vLoginData[i].szRoleName);
-				if (strcmp(it->szRoleName,g_vLoginData[i].szRoleName)==0)	// 找到掉线进程
-				{
-					tracePrint("发现掉线进程,正在重新登录\n");
-					TerminateProcess(it->hProcess, -1);	// 终止掉线进程
-					Sleep(1000);
-					AutoLogin(&g_vLoginData[i]);
-				}
-			}
+			tracePrint("游戏窗口[%s]掉线,正重新登录\n", g_vLoginData[i].szRoleName);
+			Thread_AutoLogin(&g_vLoginData[i]);	// 不创建线程,直接执行自动登录线程函数
 		}
-		else
+		tracePrint("游戏窗口[%s],与服务器连接正常\n", g_vLoginData[i].szRoleName);
+	}
+}
+
+void UpdateOnlineState()
+{
+	// 遍历g_vLoginData容器,若当前登录窗口(g_vClientData容器)中存在,则标记为在线
+	for (UINT i = 0; i < g_vLoginData.size(); ++i)
+	{
+		g_vLoginData[i].isOnline = FALSE;	//先初始化为 不在线
+		for (UINT j = 0; j < g_vClientData.size(); ++j)
 		{
-			tracePrint("所有游戏窗口与服务器连接正常\n");
+			if (strcmp(g_vLoginData[i].szRoleName, g_vClientData[j].szRoleName) == 0)
+			{
+				g_vLoginData[i].isOnline = TRUE;
+				break;
+			}
 		}
 	}
 }

@@ -98,6 +98,24 @@ void KeyPress(BYTE vk_Code)
 	keybd_event(vk_Code, 0, KEYEVENTF_KEYUP, 0);
 }
 
+BOOL EndProcess(LPCTSTR className, LPCTSTR captionName)
+{
+	HWND hWnd = FindWindowA(className, captionName);
+	if (hWnd != NULL)
+	{
+		DWORD dwPid = 0;
+		BOOL bRet = FALSE;
+		GetWindowThreadProcessId(hWnd, &dwPid);
+		HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwPid);
+		if (hProcess != NULL)
+		{
+			bRet = TerminateProcess(hProcess, -1);
+		}
+		return bRet;
+	}
+	return FALSE;
+}
+
 LPCTSTR int2LPCSTR(int a)
 {
 	CString cstr;
